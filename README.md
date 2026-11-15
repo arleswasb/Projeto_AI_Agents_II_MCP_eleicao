@@ -1,282 +1,147 @@
-# Análise de Boletins de Urna (BUWeb)
+# Análise de Boletins de Urna (BUWeb) — Agente Auditor MCP (Eleições RN)
 
-Notebook para baixar e analisar os **Boletins de Urna (BUWeb)** oficiais do
-Tribunal Superior Eleitoral (TSE). O projeto preserva o CSV original e usa
-pandas para calcular os resultados consultados por um agente local do Ollama.
+Agente inteligente de auditoria eleitoral em linguagem natural construído sobre os dados oficiais de **Boletins de Urna (BUWeb)** do Tribunal Superior Eleitoral (TSE) para o estado do Rio Grande do Norte (RN).
 
-As consultas abrangem:
+O projeto adota o protocolo aberto **MCP (Model Context Protocol)** através da biblioteca **FastMCP**, separando a inteligência da consulta da execução matemática com **pandas**. Um modelo local via **Ollama** atua como agente ReAct (Reasoning + Acting), orquestrando chamadas de ferramentas e respondendo em português sem inventar dados (*alucinações*).
 
-- votos de Governador e Presidente;
-- votos nominais, brancos e nulos;
-- zonas e seções eleitorais;
-- aptos, comparecimento e abstenções;
-- eleitores sem biometria válida;
-- comparação entre duas seções.
+---
 
-O modelo não acessa a internet nem calcula resultados por conta própria. Ele
-usa um host MCP que descobre as ferramentas publicadas pelo servidor
-[`src/bu_agent/mcp_server.py`](./src/bu_agent/mcp_server.py), executado por
-`stdio`, e consulta o arquivo carregado. Além das cinco ferramentas, o
-servidor publica o resource `eleicao-RN://schema` e o prompt
-`recomendar_analise`.
+## 🏛️ Capacidades do Agente
 
-## Arquivos
+O agente consulta e audita o CSV oficial do TSE respondendo a perguntas sobre:
 
-- [pj_01.ipynb](./pj_01.ipynb): notebook principal;
-- `planilhas/downloads/`: ZIPs baixados do TSE;
-- `planilhas/*.csv`: CSV original extraído do ZIP.
+- **Votos para Governador e Presidente** (2º Turno);
+- **Totais por tipo de voto**: nominais, brancos e nulos;
+- **Auditoria de zonas e seções eleitorais** (identificação de líderes de votos ou anomalias);
+- **Eleitorado**: total de aptos, comparecimento e abstenções;
+- **Biometria**: eleitores sem biometria válida por seção, zona ou município;
+- **Comparação direta entre seções eleitorais**.
 
-## Como configurar a fonte do TSE
+O modelo de linguagem **não calcula valores por conta própria** nem acessa a internet. Ele descobre as ferramentas publicadas pelo servidor MCP e submete as consultas ao banco de dados em memória.
 
-Na primeira célula, use **uma** das opções abaixo.
+---
 
-### Opção 1 — parâmetros e código de geração
-
-```python
-ANO = 2026
-UF = "RN"
-TURNO = 2
-GERACAO_BU = "261020260742"
-URL_BU = ""
-```
-
-O notebook monta o endereço no formato:
+## 📁 Estrutura do Projeto
 
 ```text
-https://cdn.tse.jus.br/estatistica/sead/eleicoes/eleicoes{ANO}/buweb/bweb_{TURNO}t_{UF}_{GERACAO_BU}.zip
+pj_eleicao_MCP/
+├── data/
+│   └── bweb_2t_RN_261020260742.csv     # CSV oficial do BUWeb (TSE - 2º Turno RN)
+├── notebooks/
+│   ├── Pj_eleicao_MCP.ipynb            # Notebook experimental (Colab / Jupyter)
+│   └── pj_eleicao_MCP.pdf              # Exportação em PDF do notebook executado
+├── src/
+│   └── bu_agent/                       # Pacote do agente e servidor MCP
+│       ├── __init__.py                 # Ponto de entrada e exports do pacote
+│       ├── agent.py                    # Host MCP e loop de decisão ReAct
+│       ├── cli.py                      # Interface interativa de linha de comando
+│       ├── config.py                   # Configurações de caminhos e modelo Ollama
+│       ├── data.py                     # Carregamento e normalização do CSV via pandas
+│       ├── mcp_server.py               # Servidor FastMCP (comunicação via stdio)
+│       ├── prompt.py                   # System prompt do auditor eleitoral
+│       ├── prompts.py                  # Alias de compatibilidade
+│       ├── summary.py                  # Formatador de respostas amigáveis (pt-BR)
+│       ├── tools.py                    # Implementação auditada das 5 ferramentas
+│       └── tools_schema.py             # Schemas JSON das ferramentas para a LLM
+├── tests/
+│   ├── conftest.py                     # Inclusão do diretório src no sys.path
+│   └── test_tools.py                   # Suíte com 13 testes unitários (pytest)
+├── .vscode/
+│   └── mcp.json                        # Configuração para iniciar o MCP no VS Code
+├── codigo_gerado.sh                    # Script auxiliar para baixar o modelo no Ollama
+├── LICENSE                             # Licença de uso
+├── README.md                           # Documentação completa
+└── requirement.txt                     # Dependências do projeto
 ```
 
-`GERACAO_BU` é o código exato que aparece no nome do ZIP. Ele pode mudar
-conforme a UF, o turno ou uma atualização do arquivo; portanto, não é seguro
-inferi-lo apenas com ano, UF e turno.
+### Arquivos principais
 
-### Opção 2 — link completo
+- <a href="https://github.com/arleswasb/Projeto_AI_Agents_II_MCP_eleicao/blob/main/notebooks/Pj_eleicao_MCP.ipynb"><img src="https://img.shields.io/badge/-Notebook-191A1B?style=flat-square&logo=jupyter" height="20" alt="Notebook" /></a> <a href="https://colab.research.google.com/github/arleswasb/Projeto_AI_Agents_II_MCP_eleicao/blob/main/notebooks/Pj_eleicao_MCP.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" height="20" alt="Open in Colab" /></a> [**`notebooks/Pj_eleicao_MCP.ipynb`**](./notebooks/Pj_eleicao_MCP.ipynb): Notebook interativo para desenvolvimento, experimentos no Google Colab e validação passo a passo do fluxo MCP e ReAct.
+- [**`notebooks/pj_eleicao_MCP.pdf`**](./notebooks/pj_eleicao_MCP.pdf): Relatório completo gerado a partir do notebook executado.
+- [**`data/bweb_2t_RN_261020260742.csv`**](./data/bweb_2t_RN_261020260742.csv): Arquivo de dados oficial preservado na íntegra.
 
-Quando o código não for conhecido, informe o endereço completo publicado pelo
-TSE:
+---
 
-```python
-URL_BU = (
-    "https://cdn.tse.jus.br/estatistica/sead/eleicoes/"
-    "eleicoes2026/buweb/bweb_2t_RN_261020260742.zip"
-)
-GERACAO_BU = ""
+## ⚙️ Arquitetura MCP (Model Context Protocol)
+
+O projeto opera sob o padrão cliente/servidor MCP:
+
+```text
+┌─────────────────┐        stdio        ┌─────────────────────────┐
+│     Agente      │ ◄─────────────────► │      Servidor MCP       │
+│  (bu_agent.cli  │   JSON-RPC (MCP)    │ (bu_agent.mcp_server)   │
+│   / Ollama LLM) │                     └────────────┬────────────┘
+└─────────────────┘                                  │
+                                                     ▼
+                                        ┌─────────────────────────┐
+                                        │  Gabarito com Pandas    │
+                                        │ (data/bweb_...csv)      │
+                                        └─────────────────────────┘
 ```
 
-Quando preenchido, `URL_BU` tem prioridade. O notebook valida o domínio oficial
-`cdn.tse.jus.br` e extrai do nome do arquivo o ano, a UF, o turno e a geração.
-Para mudar do segundo para o primeiro turno, use um ZIP `bweb_1t_...` válido.
+### 1. Servidor FastMCP (`src/bu_agent/mcp_server.py`)
+Publica via transporte `stdio`:
+- **5 Ferramentas de análise**;
+- **1 Resource**: `eleicao-RN://schema` (documenta as colunas oficiais do BU);
+- **1 Prompt**: `recomendar_analise` (orienta o usuário sobre perguntas relevantes).
 
-## Ordem e função das células
+### 2. Ferramentas Disponíveis
 
-Execute as células em ordem.
+| Ferramenta | Parâmetros | Descrição |
+|---|---|---|
+| `search_secoes` | `tipo_voto`, `cargo`, `zona`, `min_votos`, `top_n` | Busca e ranqueia as seções com maior número de votos. |
+| `secao_details` | `zona`, `secao` | Dados detalhados de uma seção: aptos, comparecimento, abstenções, biometria e votos por cargo. |
+| `compare_secoes` | `zona_a`, `secao_a`, `zona_b`, `secao_b`, `tipo_voto` | Compara duas seções eleitorais e identifica qual teve maior votação. |
+| `total_por_tipo` | `tipo_voto`, `cargo` | Total consolidado de votos no arquivo (Nominal, Branco ou Nulo) por cargo. |
+| `total_sem_biometria` | `zona`, `municipio` | Total de eleitores aptos sem biometria válida (geral, por zona ou por cidade). |
 
-### 1. Download do BUWeb oficial
+---
 
-Cria `planilhas/` e `planilhas/downloads/`, baixa o ZIP quando ele ainda não
-existe, extrai o primeiro CSV encontrado e valida as colunas de Governador,
-Presidente, tipos de voto, comparecimento, abstenções e biometria.
+## 🚀 Instalação e Configuração
 
-O arquivo usado pela análise é o CSV original extraído. Nenhuma coluna é
-removida.
+### 1. Preparar o Ambiente Virtual
 
-### 2. Confirmação e download do CSV original
+Requisitos:
+- Python 3.10 ou superior;
+- [Ollama](https://ollama.com/) instalado e em execução (para consultas com LLM local).
 
-Mostra o caminho e o tamanho do CSV. No Google Colab, também chama
-`google.colab.files.download` para permitir que o usuário salve o arquivo no
-computador.
-
-### 3. Inspeção dos dados
-
-Exibe o cabeçalho, o número de linhas, o número de colunas, os primeiros
-registros e amostras de Governador e Presidente.
-
-### 4. Preparação do Ollama
-
-Confere a instalação do Ollama, tenta iniciar o servidor local quando necessário
-e verifica se o modelo configurado está disponível.
-
-### 5. Diagnóstico de GPU e velocidade
-
-Verifica `nvidia-smi` antes de executá-lo, informa se há GPU NVIDIA e mede a
-velocidade de geração. A análise continua em CPU quando não há GPU.
-
-### 6. Utilitários
-
-Define as funções auxiliares para chamar a API local do Ollama e exibir o
-histórico da conversa.
-
-### 7. Gabarito com pandas
-
-Carrega o CSV original com `dtype=str`, preservando zeros à esquerda de zona,
-seção e município. Renomeia os identificadores para `ZONA_N` e `SECAO_N` e
-cria:
-
-- `QT_VOTOS_N`: versão numérica de `QT_VOTOS`;
-- `AGREGADA`: indica se a seção possui seções agregadas.
-
-Essas colunas derivadas são necessárias pelas funções de análise.
-
-### 8. Funções de análise
-
-Implementa e registra em `FUNCTIONS`:
-
-- `search_secoes`;
-- `secao_details`;
-- `compare_secoes`;
-- `total_por_tipo`;
-- `total_sem_biometria`.
-
-As funções validam parâmetros, consultam o dataframe real e retornam erros
-explícitos para filtros inválidos ou sem resultados.
-
-### 9. Schemas das ferramentas
-
-Define em `TOOLS` os nomes, descrições, tipos e parâmetros que o Ollama pode
-usar para chamar cada função.
-
-### 10. Prompt do agente e loop de execução
-
-Define as regras de resposta em português, o escopo dos dados e a obrigação de
-usar as ferramentas. Em seguida executa o fluxo:
-
-1. envia a pergunta ao modelo;
-2. recebe a chamada de ferramenta;
-3. executa a função Python;
-4. devolve o resultado ao modelo;
-5. exibe a resposta final.
-
-### 11. Bateria final
-
-Executa perguntas de validação sobre totais, zonas, seções, comparação,
-biometria e perguntas fora do escopo. O resultado mostra quantos testes foram
-aprovados e reprovados.
-
-### 12. Perguntas livres
-
-Abre um loop para perguntas manuais sobre o arquivo carregado. Use `sair`,
-`exit` ou `q` para encerrar.
-
-## Execução no Google Colab
-
-O caminho `Path.cwd()` normalmente corresponde a `/content`. Esse armazenamento
-é temporário e pode ser apagado quando a sessão termina.
-
-Para conservar os dados:
-
-1. execute a célula de confirmação para baixar o CSV para o computador; ou
-2. monte o Google Drive e execute o notebook em uma pasta persistente.
-
-Se o ZIP já existir em `planilhas/downloads/`, a célula reutiliza o arquivo em
-vez de baixá-lo novamente.
-
-## Requisitos
-
-- Python 3;
-- pandas;
-- requests;
-- fastmcp 4.1.4;
-- Jupyter, VS Code ou Google Colab;
-- Ollama e um modelo local, por padrão `qwen2.5:7b`.
-
-Instale as dependências com:
+Clone o repositório e crie o ambiente virtual:
 
 ```bash
-python -m pip install -r requirement.txt
-```
+git clone https://github.com/arleswasb/Projeto_AI_Agents_II_MCP_eleicao.git
+cd Projeto_AI_Agents_II_MCP_eleicao
 
-Para inspecionar o servidor MCP sem iniciar o Ollama, use o cliente Python do
-FastMCP ou o MCP Inspector apontando para
-`src/bu_agent/mcp_server.py`. O agente de linha de comando pode ser iniciado
-com:
-
-```bash
-PYTHONPATH=src python -m bu_agent.cli
-```
-
-### Executar o servidor MCP no VS Code
-
-O servidor usa `stdio`, portanto o comando abaixo fica aguardando mensagens e
-não deve ser encerrado por parecer travado:
-
-```bash
-PYTHONPATH=src .venv/bin/python src/bu_agent/mcp_server.py
-```
-
-Para registrar o servidor automaticamente no VS Code, abra a pasta do projeto
-e use a configuração em [`.vscode/mcp.json`](./.vscode/mcp.json). Depois:
-
-1. abra a paleta de comandos;
-2. execute **MCP: List Servers**;
-3. selecione `eleicao-rn`;
-4. escolha **Start**.
-
-Se o ambiente virtual ainda não existir, crie-o e instale as dependências:
-
-```bash
 python3 -m venv .venv
-.venv/bin/pip install -r requirement.txt
+source .venv/bin/activate   # No Windows: .venv\Scripts\activate
+pip install -r requirement.txt
 ```
 
-## Sequência de teste
-
-Execute os passos abaixo a partir da raiz do projeto. Eles validam primeiro os
-dados e as funções, depois o servidor MCP e, por fim, o fluxo completo com o
-Ollama.
-
-### 1. Preparar o ambiente
+Confirme que o arquivo de dados está presente em `data/`:
 
 ```bash
-cd "/mnt/ssd/projeto eleição/pj_eleicao_MCP"
-python3 -m venv .venv                 # execute apenas se ainda não existir
-.venv/bin/pip install -r requirement.txt
+test -f data/bweb_2t_RN_261020260742.csv && echo "Dados encontrados com sucesso."
 ```
 
-Confirme que o arquivo de dados está presente:
+---
+
+## 🧪 Validação e Testes
+
+### 1. Executar a Suíte de Testes Automatizados
+
+O projeto inclui 13 testes unitários que validam todas as 5 ferramentas e as regras de tratamento de erros com dados reais:
 
 ```bash
-test -f data/bweb_2t_RN_261020260742.csv && echo "dados encontrados"
-```
-
-### 2. Executar os testes automatizados
-
-```bash
-.venv/bin/pytest -q
+.venv/bin/pytest -v
 ```
 
 Resultado esperado:
-
 ```text
-13 passed
+13 passed in 1.xx s
 ```
 
-### 3. Conferir o Ollama e o modelo
+### 2. Testar o Servidor MCP Standalone (sem LLM)
 
-Em um terminal separado do servidor MCP, verifique o serviço e os modelos:
-
-```bash
-curl http://localhost:11434/api/version
-ollama list
-```
-
-O modelo usado pelo projeto é definido por `BU_MODEL`. O padrão atual é
-`qwen2.5:7b`. Para usar o modelo `qwen2.5:3b`, que também é compatível:
-
-```bash
-BU_MODEL=qwen2.5:3b
-```
-
-Se o Ollama não estiver em execução:
-
-```bash
-ollama serve
-```
-
-### 4. Testar o servidor MCP sem Ollama
-
-Este comando inicia o servidor por `stdio` e verifica as ferramentas, o
-resource e o prompt. Ele deve ser executado em um segundo terminal; o processo
-do servidor fica ativo somente durante o teste:
+Você pode verificar as ferramentas, resource e prompt do servidor FastMCP diretamente via Python:
 
 ```bash
 PYTHONPATH=src .venv/bin/python - <<'PY'
@@ -287,78 +152,129 @@ from fastmcp import Client
 async def main():
     async with Client(Path("src/bu_agent/mcp_server.py")) as client:
         tools = await client.list_tools()
-        print("ferramentas:", [tool.name for tool in tools])
+        print("✅ Ferramentas MCP:", [tool.name for tool in tools])
 
         total = await client.call_tool(
             "total_por_tipo",
             {"tipo_voto": "Nulo", "cargo": "Presidente"},
         )
-        print("total:", total.data)
+        print("✅ Retorno total_por_tipo:", total.data)
 
         schema = await client.read_resource("eleicao-RN://schema")
-        print("resource:", bool(schema))
+        print("✅ Resource eleicao-RN://schema:", bool(schema))
 
         prompt = await client.get_prompt(
             "recomendar_analise",
             {"cargo": "Presidente", "tipo_voto": "Nulo"},
         )
-        print("prompt:", bool(prompt.messages))
+        print("✅ Prompt recomendar_analise:", bool(prompt.messages))
 
 asyncio.run(main())
 PY
 ```
 
-Os valores esperados incluem:
+Ou usando o utilitário CLI do FastMCP:
 
-```text
-ferramentas: ['total_por_tipo', 'total_sem_biometria', 'secao_details', 'compare_secoes', 'search_secoes']
-total: {'total_votos': 61879, ...}
-resource: True
-prompt: True
+```bash
+fastmcp list src/bu_agent/mcp_server.py --resources --prompts --input-schema
+fastmcp call src/bu_agent/mcp_server.py total_por_tipo tipo_voto=Nulo cargo=Presidente
 ```
 
-### 5. Executar o agente completo
+---
 
-Em outro terminal, inicie o agente:
+## 💬 Executando o Agente Interativo (CLI)
+
+### 1. Iniciar o Ollama e baixar o modelo
+
+O modelo padrão é `qwen2.5:7b` (ou a versão leve `qwen2.5:3b`):
+
+```bash
+# Inicie o serviço em segundo plano caso não esteja rodando:
+ollama serve
+
+# Baixe o modelo desejado:
+ollama pull qwen2.5:7b
+# ou para máquinas mais modestas:
+ollama pull qwen2.5:3b
+```
+
+Para selecionar o modelo de 3 bilhões de parâmetros, defina a variável de ambiente:
+
+```bash
+export BU_MODEL=qwen2.5:3b
+```
+
+### 2. Iniciar a CLI do Agente
+
+Execute:
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m bu_agent.cli
 ```
 
-Faça estas perguntas, uma por vez:
+Exemplos de perguntas para testar no terminal:
 
 ```text
-Quantos votos nulos para presidente existem?
-Quais seções têm mais votos nulos para governador?
-Me dê os detalhes da seção 505 da zona 3.
-Compare os votos nominais da seção 505 com a 504 da zona 3.
-Quantos eleitores estão sem biometria válida no total?
+❓ Quantos votos nulos para presidente existem?
+❓ Quais seções têm mais votos nulos para governador?
+❓ Me dê os detalhes da seção 505 da zona 3.
+❓ Compare os votos nominais da seção 505 com a 504 da zona 3.
+❓ Quantos eleitores estão sem biometria válida no total?
+❓ Quantos eleitores sem biometria existem no município de Natal?
 ```
 
-O terminal deve mostrar a sequência ReAct, com uma chamada MCP entre a
-pergunta e a resposta final:
-
+O agente exibirá o ciclo ReAct detalhado:
 ```text
 ── volta 1 ──
-🤖 o modelo pediu → total_por_tipo(...)
-🔧 nós executamos → ...
+🤖 o modelo pediu → total_por_tipo(cargo='Presidente', tipo_voto='Nulo')
+🔧 nós executamos → 61.879 votos (Nulo para Presidente) em 1.543 linhas
 ── volta 2 ──
-🤖 o modelo respondeu com texto → fim do loop
+🤖 o modelo respondeu com texto → No 2º turno do RN foram registrados 61.879 votos nulos para Presidente.
 ```
 
-Encerre com `sair`, `exit` ou `q`.
+Para encerrar o agente, digite `sair`, `exit` ou `q`.
 
-### 6. Diagnóstico rápido
+---
 
-- **`model ... not found`**: instale o modelo ou defina `BU_MODEL` para um nome
-  exibido por `ollama list`.
-- **`Connection refused`**: inicie o Ollama com `ollama serve`.
-- **O servidor parece travado**: isso é esperado quando ele é iniciado
-  diretamente; o transporte `stdio` fica aguardando um cliente MCP.
-- **`13 passed`**: as funções eleitorais e os dados locais foram validados.
+## 💻 Integração com VS Code
 
-Os dados devem ser obtidos do CDN oficial:
+O projeto conta com o arquivo [`.vscode/mcp.json`](./.vscode/mcp.json) pré-configurado.
 
-```text
-https://cdn.tse.jus.br/
-```
+Para iniciar o servidor MCP pelo VS Code:
+1. Abra a pasta do projeto no VS Code;
+2. Pressione `Ctrl+Shift+P` (ou `Cmd+Shift+P` no macOS);
+3. Digite e selecione **MCP: List Servers**;
+4. Localize `eleicao-rn` e selecione **Start**.
+
+---
+
+## 📓 Execução pelo Notebook
+
+- <a href="https://github.com/arleswasb/Projeto_AI_Agents_II_MCP_eleicao/blob/main/notebooks/Pj_eleicao_MCP.ipynb"><img src="https://img.shields.io/badge/-Notebook-191A1B?style=flat-square&logo=jupyter" height="20" alt="Notebook" /></a> <a href="https://colab.research.google.com/github/arleswasb/Projeto_AI_Agents_II_MCP_eleicao/blob/main/notebooks/Pj_eleicao_MCP.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" height="20" alt="Open in Colab" /></a> [**`Pj_eleicao_MCP.ipynb`**](./notebooks/Pj_eleicao_MCP.ipynb) — Auditoria Eleitoral BUWeb RN (MCP + Agente ReAct)
+  - **No Google Colab:** Clique na tag **Open in Colab** acima para abrir e executar diretamente na nuvem.
+  - **Localmente:** Abra [`notebooks/Pj_eleicao_MCP.ipynb`](./notebooks/Pj_eleicao_MCP.ipynb) no VS Code ou Jupyter Lab com o ambiente virtual `.venv` ativo.
+  - **Relatório:** Visualize o relatório gerado em [`notebooks/pj_eleicao_MCP.pdf`](./notebooks/pj_eleicao_MCP.pdf).
+
+As células são organizadas linearmente:
+- **Download e extração** do BUWeb direto do CDN do TSE;
+- **Inspeção de dados** estruturais com pandas;
+- **Verificação do Ollama** e diagnóstico de GPU (`nvidia-smi`);
+- **Criação do servidor MCP** (`mcp_server.py`) e inspeção de schemas JSON-RPC;
+- **Loop ReAct do agente** com bateria de perguntas e validações.
+
+---
+
+## 🛡️ Fonte dos Dados Oficiais
+
+Os dados devem ser obtidos exclusivamente a partir do CDN oficial do TSE:
+- [Repositório de Dados Eleitorais do TSE](https://dadosabertos.tse.jus.br/)
+- Padrão de URL de download oficial:
+  ```text
+  https://cdn.tse.jus.br/estatistica/sead/eleicoes/eleicoes{ANO}/buweb/bweb_{TURNO}t_{UF}_{GERACAO_BU}.zip
+  ```
+
+---
+
+## 📄 Licença
+
+Este projeto está sob a licença [MIT](./LICENSE).
